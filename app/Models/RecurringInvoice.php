@@ -63,6 +63,7 @@ use App\Models\Presenters\RecurringInvoicePresenter;
  * @property string|null $custom_value4
  * @property float $amount
  * @property float $balance
+ * @property float $stamp_duty
  * @property float|null $partial
  * @property string|null $last_viewed
  * @property int $frequency_id
@@ -233,6 +234,7 @@ class RecurringInvoice extends BaseModel
         'uses_inclusive_taxes',
         'e_invoice',
         'location_id',
+        'stamp_duty',
     ];
 
     protected $casts = [
@@ -243,6 +245,7 @@ class RecurringInvoice extends BaseModel
         'created_at' => 'timestamp',
         'deleted_at' => 'timestamp',
         'e_invoice' => 'object',
+        'stamp_duty' => 'float',
     ];
 
     protected $appends = [

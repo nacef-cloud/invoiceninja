@@ -410,6 +410,9 @@ class HtmlEngine
         $data['$partial_due'] = ['value' => Number::formatMoney($this->entity->partial, $this->client) ?: ' ', 'label' => ctrans('texts.partial_due')];
         $data['$partial'] = &$data['$partial_due'];
 
+        $data['$stamp_duty'] = ['value' => Number::formatMoney($this->entity->stamp_duty ?? 0, $this->client) ?: ' ', 'label' => ctrans('texts.stamp_duty')];
+        $data['$stamp_duty_label'] = ['value' => ctrans('texts.stamp_duty'), 'label' => ''];
+
         $data['$total'] = ['value' => Number::formatMoney($this->entity_calc->getTotal(), $this->client) ?: ' ', 'label' => ctrans('texts.total')];
         $data['$amount'] = &$data['$total'];
         $data['$amount_bgn_eur'] = ['value' => Number::formatValue($this->entity_calc->getTotal()/1.95583, app('currencies')->first(function ($currency) {

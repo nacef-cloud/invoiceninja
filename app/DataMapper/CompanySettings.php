@@ -536,7 +536,14 @@ class CompanySettings extends BaseSettings
     public string $ses_topic_arn = '';
     public string $ses_from_address = '';
 
+    public bool $enable_stamp_duty = false;
+    public float $stamp_duty_amount = 1.000;
+    public float $stamp_duty_threshold = 1.000;
+
     public static $casts = [
+        'enable_stamp_duty' => 'bool',
+        'stamp_duty_amount' => 'float',
+        'stamp_duty_threshold' => 'float',
         'ses_from_address' => 'string',
         'ses_topic_arn' => 'string',
         'ses_secret_key' => 'string',
@@ -1069,6 +1076,7 @@ class CompanySettings extends BaseSettings
                 '$custom_surcharge4',
                 '$total_taxes',
                 '$line_taxes',
+                '$stamp_duty',
                 '$total',
                 '$paid_to_date',
                 '$outstanding',

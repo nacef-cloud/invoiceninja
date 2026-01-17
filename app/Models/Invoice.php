@@ -89,6 +89,7 @@ use App\Utils\Number;
  * @property float $exchange_rate
  * @property float $amount
  * @property float $balance
+ * @property float $stamp_duty
  * @property float|null $partial
  * @property string|null|\Carbon\Carbon $partial_due_date
  * @property string|null $last_viewed
@@ -209,6 +210,7 @@ class Invoice extends BaseModel
         'vendor_id',
         'e_invoice',
         'location_id',
+        'stamp_duty',
     ];
 
     protected $casts = [
@@ -227,6 +229,7 @@ class Invoice extends BaseModel
         'custom_surcharge_tax4' => 'bool',
         'e_invoice' => 'object',
         'sync' => InvoiceSync::class,
+        'stamp_duty' => 'float',
 
     ];
 

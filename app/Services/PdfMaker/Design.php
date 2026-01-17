@@ -1199,7 +1199,7 @@ class Design extends BaseDesign
             }
         }
 
-        foreach (['discount'] as $property) {
+        foreach (['discount', 'stamp_duty'] as $property) {
             $variable = sprintf('%s%s', '$', $property);
 
             if (

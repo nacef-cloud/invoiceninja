@@ -117,6 +117,7 @@ class RecurringInvoiceTransformer extends EntityTransformer
             'tax_name3' => $invoice->tax_name3 ? $invoice->tax_name3 : '',
             'tax_rate3' => (float) $invoice->tax_rate3,
             'total_taxes' => (float) $invoice->total_taxes,
+            'stamp_duty' => (float) ($invoice->stamp_duty ?: 0.0),
             'is_amount_discount' => (bool) ($invoice->is_amount_discount ?: false),
             'footer' => $invoice->footer ?: '',
             'partial' => (float) ($invoice->partial ?: 0.0),

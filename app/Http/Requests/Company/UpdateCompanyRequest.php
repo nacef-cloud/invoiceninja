@@ -117,6 +117,9 @@ class UpdateCompanyRequest extends Request
         $rules['settings.ses_from_address'] = 'required_if:settings.email_sending_method,client_ses'; //ses specific rules
         $rules['settings.reply_to_email'] = 'sometimes|nullable|email'; // ensures that the reply to email address is a valid email address
         $rules['settings.bcc_email'] = ['sometimes', 'nullable', new \App\Rules\CommaSeparatedEmails]; //ensure that the BCC's are valid comma separated emails
+        $rules['settings.enable_stamp_duty'] = 'sometimes|boolean';
+        $rules['settings.stamp_duty_amount'] = 'sometimes|numeric|min:0';
+        $rules['settings.stamp_duty_threshold'] = 'sometimes|numeric|min:0';
 
         return $rules;
     }

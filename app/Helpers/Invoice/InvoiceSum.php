@@ -58,6 +58,8 @@ class InvoiceSum
     public InvoiceItemSum $invoice_items;
 
     private $rappen_rounding = false;
+
+    private $stamp_duty = 0;
     /**
      * Constructs the object with Invoice and Settings object.
      *
@@ -84,6 +86,7 @@ class InvoiceSum
              ->calculateCustomValues()
              ->setTaxMap()
              ->calculateTotals()
+             ->calculateStampDuty()
              ->calculateBalance()
              ->calculatePartial();
 
@@ -193,6 +196,35 @@ class InvoiceSum
         $this->total += $this->total_taxes;
 
         return $this;
+    }
+
+    private function calculateStampDuty(): self
+    {
+        $company = $this->invoice->company ?? $this->client->company;
+
+        if (!$company->settings->enable_stamp_duty) {
+            $this->invoice->stamp_duty = 0;
+            return $this;
+        }
+
+        $amount = floatval($company->settings->stamp_duty_amount);
+        $threshold = floatval($company->settings->stamp_duty_threshold);
+
+        if ($this->total > $threshold && $amount > 0) {
+            $this->stamp_duty = $amount;
+            $this->invoice->stamp_duty = $amount;
+            $this->total += $this->stamp_duty;
+        } else {
+            $this->stamp_duty = 0;
+            $this->invoice->stamp_duty = 0;
+        }
+
+        return $this;
+    }
+
+    public function getStampDuty()
+    {
+        return $this->stamp_duty;
     }
 
     /**

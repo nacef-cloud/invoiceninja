@@ -82,6 +82,12 @@ class PreviewController extends BaseController
             $invitation->setRelation($request->entity, $entity_obj);
         }
 
+        // Calculate totals including stamp duty for live preview
+        if (method_exists($entity_obj, 'calc')) {
+            $entity_obj = $entity_obj->calc()->getInvoice();
+            $invitation->setRelation($request->entity, $entity_obj);
+        }
+
         $ps = new PdfService($invitation, 'product', [
             'client' => $client ?? false,
             "{$entity_prop}s" => [$entity_obj],

@@ -56,6 +56,8 @@ class InvoiceSumInclusive
     private Client | Vendor $client;
 
     public InvoiceItemSumInclusive $invoice_items;
+
+    private $stamp_duty = 0;
     /**
      * Constructs the object with Invoice and Settings object.
      *
@@ -80,6 +82,7 @@ class InvoiceSumInclusive
              ->calculateCustomValues()
              ->setTaxMap()
              ->calculateTotals() //just don't add the taxes!!
+             ->calculateStampDuty()
              ->calculateBalance()
              ->calculatePartial();
 
@@ -210,6 +213,35 @@ class InvoiceSumInclusive
     private function calculateTotals()
     {
         return $this;
+    }
+
+    private function calculateStampDuty(): self
+    {
+        $company = $this->invoice->company ?? $this->client->company;
+
+        if (!$company->settings->enable_stamp_duty) {
+            $this->invoice->stamp_duty = 0;
+            return $this;
+        }
+
+        $amount = floatval($company->settings->stamp_duty_amount);
+        $threshold = floatval($company->settings->stamp_duty_threshold);
+
+        if ($this->total > $threshold && $amount > 0) {
+            $this->stamp_duty = $amount;
+            $this->invoice->stamp_duty = $amount;
+            $this->total += $this->stamp_duty;
+        } else {
+            $this->stamp_duty = 0;
+            $this->invoice->stamp_duty = 0;
+        }
+
+        return $this;
+    }
+
+    public function getStampDuty()
+    {
+        return $this->stamp_duty;
     }
 
     public function getTotalSurcharges()

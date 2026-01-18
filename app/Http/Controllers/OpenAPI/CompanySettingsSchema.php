@@ -151,5 +151,8 @@
  *       @OA\Property(property="endless_reminder_frequency_id", type="string", example="1", description="The frequency id of the endless reminder"),
  *       @OA\Property(property="client_online_payment_notification", type="boolean", example=false, description="Determines if a client should receive the notification for a online payment"),
  *       @OA\Property(property="client_manual_payment_notification", type="boolean", example=false, description="Determines if a client should receive the notification for a manually entered payment"),
+ *       @OA\Property(property="enable_stamp_duty", type="boolean", example=false, description="Enable stamp duty calculation"),
+ *       @OA\Property(property="stamp_duty_amount", type="number", format="float", example=1.000, description="Fixed stamp duty amount"),
+ *       @OA\Property(property="stamp_duty_threshold", type="number", format="float", example=1.000, description="Minimum invoice total to apply stamp duty"),
  * )
  */

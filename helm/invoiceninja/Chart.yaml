@@ -1,0 +1,42 @@
+apiVersion: v2
+name: invoiceninja
+description: A Helm chart for Invoice Ninja - Open Source Invoicing Platform
+type: application
+version: 1.0.0
+appVersion: "5.12.38"
+keywords:
+  - invoicing
+  - billing
+  - finance
+  - laravel
+home: https://invoiceninja.com
+sources:
+  - https://github.com/invoiceninja/invoiceninja
+maintainers:
+  - name: Invoice Ninja Team
+
+# Dependencies - use Bitnami charts for production-ready components
+dependencies:
+  # MySQL Database
+  - name: mysql
+    version: ~11.1.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: mysql.enabled
+    tags:
+      - database
+
+  # Redis for caching, sessions, and queues
+  - name: redis
+    version: ~20.6.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: redis.enabled
+    tags:
+      - cache
+
+  # MinIO for S3-compatible object storage
+  - name: minio
+    version: ~14.8.0
+    repository: https://charts.bitnami.com/bitnami
+    condition: minio.enabled
+    tags:
+      - storage

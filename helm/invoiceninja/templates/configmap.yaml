@@ -1,0 +1,63 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "invoiceninja.fullname" . }}-config
+  labels:
+    {{- include "invoiceninja.labels" . | nindent 4 }}
+data:
+  # Application
+  APP_ENV: {{ .Values.app.env | quote }}
+  APP_DEBUG: {{ .Values.app.debug | quote }}
+  APP_URL: {{ .Values.app.url | quote }}
+  APP_LOCALE: {{ .Values.app.locale | quote }}
+  APP_TRUSTED_PROXIES: {{ .Values.app.trustedProxies | quote }}
+
+  # Database
+  DB_CONNECTION: {{ .Values.database.connection | quote }}
+  DB_HOST: {{ include "invoiceninja.databaseHost" . | quote }}
+  DB_PORT: {{ .Values.database.port | quote }}
+  DB_DATABASE: {{ .Values.database.name | quote }}
+  DB_SSLMODE: "DISABLED"
+  MYSQL_ATTR_SSL_CA: ""
+  MYSQL_ATTR_SSL_VERIFY_SERVER_CERT: "false"
+
+  # Cache
+  CACHE_DRIVER: {{ .Values.cache.driver | quote }}
+  SESSION_DRIVER: {{ .Values.session.driver | quote }}
+  SESSION_LIFETIME: {{ .Values.session.lifetime | quote }}
+  QUEUE_CONNECTION: {{ .Values.queue.connection | quote }}
+
+  # Redis
+  REDIS_HOST: {{ include "invoiceninja.redisHost" . | quote }}
+  REDIS_PORT: {{ include "invoiceninja.redisPort" . | quote }}
+  REDIS_DB: {{ include "invoiceninja.redisDatabase" . | quote }}
+  REDIS_CACHE_DB: {{ include "invoiceninja.redisCacheDatabase" . | quote }}
+
+  # File Storage
+  FILESYSTEM_DISK: {{ .Values.storage.driver | quote }}
+  {{- if eq .Values.storage.driver "s3" }}
+  AWS_DEFAULT_REGION: {{ .Values.storage.s3.region | quote }}
+  AWS_BUCKET: {{ .Values.storage.s3.bucket | quote }}
+  AWS_ENDPOINT: {{ include "invoiceninja.minioEndpoint" . | quote }}
+  AWS_USE_PATH_STYLE_ENDPOINT: {{ .Values.storage.s3.usePathStyle | quote }}
+  {{- end }}
+
+  # PDF Generation
+  PDF_GENERATOR: {{ .Values.pdf.generator | quote }}
+  {{- if and .Values.gotenberg.enabled (eq .Values.pdf.generator "gotenberg") }}
+  GOTENBERG_API_URL: {{ include "invoiceninja.gotenbergUrl" . | quote }}
+  {{- end }}
+
+  # Mail
+  MAIL_MAILER: {{ .Values.mail.mailer | quote }}
+  MAIL_HOST: {{ .Values.mail.host | quote }}
+  MAIL_PORT: {{ .Values.mail.port | quote }}
+  MAIL_ENCRYPTION: {{ .Values.mail.encryption | quote }}
+  MAIL_FROM_ADDRESS: {{ .Values.mail.fromAddress | quote }}
+  MAIL_FROM_NAME: {{ .Values.mail.fromName | quote }}
+
+  # Docker/Kubernetes specific
+  IS_DOCKER: "true"
+  NINJA_ENVIRONMENT: "selfhost"
+  LOG_CHANNEL: "stderr"
+  BROADCAST_DRIVER: "log"

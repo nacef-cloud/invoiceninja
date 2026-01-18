@@ -1,0 +1,72 @@
+==========================================
+Invoice Ninja has been deployed!
+==========================================
+
+{{- if .Values.bootstrap.enabled }}
+
+🔐 Bootstrap Admin Account Created:
+
+   Email: {{ .Values.bootstrap.adminEmail }}
+
+   To retrieve the auto-generated password:
+   kubectl get secret {{ include "invoiceninja.fullname" . }}-bootstrap -n {{ .Release.Namespace }} -o jsonpath='{.data.BOOTSTRAP_PASSWORD}' | base64 -d && echo
+
+📱 Connect with Flutter Desktop App:
+
+   API URL: {{ .Values.app.url }}
+   Email: {{ .Values.bootstrap.adminEmail }}
+   Password: (use command above to retrieve)
+
+{{- end }}
+
+1. Get the application URL:
+{{- if .Values.ingress.enabled }}
+{{- range $host := .Values.ingress.hosts }}
+  {{- range .paths }}
+  http{{ if $.Values.ingress.tls }}s{{ end }}://{{ $host.host }}{{ .path }}
+  {{- end }}
+{{- end }}
+{{- else if contains "NodePort" .Values.service.type }}
+  export NODE_PORT=$(kubectl get --namespace {{ .Release.Namespace }} -o jsonpath="{.spec.ports[0].nodePort}" services {{ include "invoiceninja.fullname" . }}-web)
+  export NODE_IP=$(kubectl get nodes --namespace {{ .Release.Namespace }} -o jsonpath="{.items[0].status.addresses[0].address}")
+  echo http://$NODE_IP:$NODE_PORT
+{{- else if contains "LoadBalancer" .Values.service.type }}
+     NOTE: It may take a few minutes for the LoadBalancer IP to be available.
+           You can watch the status by running 'kubectl get --namespace {{ .Release.Namespace }} svc -w {{ include "invoiceninja.fullname" . }}-web'
+  export SERVICE_IP=$(kubectl get svc --namespace {{ .Release.Namespace }} {{ include "invoiceninja.fullname" . }}-web --template "{{"{{ range (index .status.loadBalancer.ingress 0) }}{{.}}{{ end }}"}}")
+  echo http://$SERVICE_IP:{{ .Values.service.port }}
+{{- else if contains "ClusterIP" .Values.service.type }}
+  kubectl --namespace {{ .Release.Namespace }} port-forward svc/{{ include "invoiceninja.fullname" . }}-web 8080:80
+  echo "Visit http://127.0.0.1:8080 to use your application"
+{{- end }}
+
+2. Check the status of your deployment:
+   kubectl get pods -n {{ .Release.Namespace }} -l app.kubernetes.io/instance={{ .Release.Name }}
+
+3. View logs:
+   # Web logs
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=web -f
+
+   # Queue worker logs
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=queue -f
+
+   # Bootstrap job logs (if enabled)
+{{- if .Values.bootstrap.enabled }}
+   kubectl logs -n {{ .Release.Namespace }} -l app.kubernetes.io/component=bootstrap
+{{- end }}
+
+4. Database credentials:
+   Username: {{ .Values.mysql.auth.username }}
+   Password: (stored in secret {{ include "invoiceninja.fullname" . }}-secret)
+   Database: {{ .Values.mysql.auth.database }}
+
+5. MinIO (S3) access:
+   Access Key: {{ .Values.minio.auth.rootUser }}
+   Secret Key: (stored in secret {{ include "invoiceninja.fullname" . }}-secret)
+   Bucket: {{ .Values.storage.s3.bucket }}
+
+For more information, visit:
+- Documentation: https://invoiceninja.github.io/
+- Support: https://forum.invoiceninja.com/
+
+Happy Invoicing! 🎉

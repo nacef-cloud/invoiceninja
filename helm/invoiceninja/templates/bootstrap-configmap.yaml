@@ -1,0 +1,112 @@
+{{- if .Values.bootstrap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "invoiceninja.fullname" . }}-bootstrap
+  labels:
+    {{- include "invoiceninja.labels" . | nindent 4 }}
+data:
+  bootstrap.sh: |
+    #!/bin/sh
+    set -e
+
+    echo "========================================="
+    echo "Invoice Ninja Bootstrap Script"
+    echo "========================================="
+
+    # Wait for database to be ready
+    echo "Waiting for database connection..."
+    max_attempts=30
+    attempt=0
+    until php artisan db:show > /dev/null 2>&1; do
+        attempt=$((attempt + 1))
+        if [ $attempt -gt $max_attempts ]; then
+            echo "ERROR: Database connection timeout after $max_attempts attempts"
+            exit 1
+        fi
+        echo "  Attempt $attempt/$max_attempts - waiting..."
+        sleep 2
+    done
+    echo "✓ Database is ready!"
+
+    # Wait for migrations to be applied
+    echo "Waiting for migrations to be applied..."
+    attempt=0
+    until php artisan migrate:status 2>&1 | grep -q "Ran" && ! php artisan migrate:status 2>&1 | grep -q "Pending"; do
+        attempt=$((attempt + 1))
+        if [ $attempt -gt $max_attempts ]; then
+            echo "ERROR: Migrations not applied after $max_attempts attempts"
+            echo "Migration status:"
+            php artisan migrate:status 2>&1 || true
+            exit 1
+        fi
+        echo "  Attempt $attempt/$max_attempts - waiting for migrations..."
+        sleep 3
+    done
+    echo "✓ All migrations are complete!"
+
+    # Seed static data (languages, currencies, countries, etc.)
+    echo "Seeding static data..."
+    TIMEZONE_COUNT=$(php artisan tinker --execute="echo App\Models\Timezone::count();" 2>/dev/null | tail -1)
+
+    if [ "$TIMEZONE_COUNT" -eq 0 ]; then
+        echo "Running database seeder..."
+        php artisan db:seed --force
+        echo "✓ Static data seeded successfully!"
+    else
+        echo "✓ Static data already seeded (found $TIMEZONE_COUNT timezones)"
+    fi
+
+    # Clear and rebuild cache to ensure all data is properly cached
+    echo "Clearing and rebuilding cache..."
+    php artisan tinker --execute="Cache::forget('languages'); Cache::forget('currencies');" 2>/dev/null
+    LANG_COUNT=$(php artisan tinker --execute="\$langs = Cache::rememberForever('languages', function() { return App\Models\Language::all(); }); echo \$langs->count();" 2>/dev/null | tail -1)
+    CURR_COUNT=$(php artisan tinker --execute="\$curr = Cache::rememberForever('currencies', function() { return App\Models\Currency::all(); }); echo \$curr->count();" 2>/dev/null | tail -1)
+    echo "✓ Cache rebuilt (Languages: $LANG_COUNT, Currencies: $CURR_COUNT)"
+
+    # Check if admin user already exists
+    echo "Checking if admin user exists..."
+    USER_COUNT=$(php artisan tinker --execute="echo App\Models\User::where('email', '${BOOTSTRAP_EMAIL}')->count();" 2>/dev/null | tail -1)
+
+    if [ "$USER_COUNT" -gt 0 ]; then
+        echo "✓ Admin user already exists (${BOOTSTRAP_EMAIL}), skipping bootstrap"
+        exit 0
+    fi
+
+    echo "Creating admin account..."
+    php artisan ninja:create-account \
+        --email="${BOOTSTRAP_EMAIL}" \
+        --password="${BOOTSTRAP_PASSWORD}" \
+        --no-interaction
+
+    if [ $? -eq 0 ]; then
+        echo "✓ Admin account created successfully!"
+        echo ""
+        echo "========================================="
+        echo "Bootstrap Complete!"
+        echo "========================================="
+        echo ""
+        echo "Static Data (Database):"
+        echo "  - Languages: $(php artisan tinker --execute='echo App\Models\Language::count();' 2>/dev/null | tail -1)"
+        echo "  - Currencies: $(php artisan tinker --execute='echo App\Models\Currency::count();' 2>/dev/null | tail -1)"
+        echo "  - Countries: $(php artisan tinker --execute='echo App\Models\Country::count();' 2>/dev/null | tail -1)"
+        echo ""
+        echo "Cached Data:"
+        echo "  - Languages: $(php artisan tinker --execute='echo Cache::get("languages") ? Cache::get("languages")->count() : "Not cached";' 2>/dev/null | tail -1)"
+        echo "  - Currencies: $(php artisan tinker --execute='echo Cache::get("currencies") ? Cache::get("currencies")->count() : "Not cached";' 2>/dev/null | tail -1)"
+        echo ""
+        echo "Admin Email: ${BOOTSTRAP_EMAIL}"
+        echo "Admin Password: Stored in secret {{ include "invoiceninja.fullname" . }}-bootstrap"
+        echo ""
+        echo "To retrieve the password, run:"
+        echo "  kubectl get secret {{ include "invoiceninja.fullname" . }}-bootstrap -n {{ .Release.Namespace }} -o jsonpath='{.data.BOOTSTRAP_PASSWORD}' | base64 -d"
+        echo ""
+        echo "NOTE: If the web pods started before this bootstrap completed,"
+        echo "they may have stale cached data. Restart them to reload fresh data:"
+        echo "  kubectl rollout restart deployment/{{ include "invoiceninja.fullname" . }}-web"
+        echo "========================================="
+    else
+        echo "ERROR: Failed to create admin account"
+        exit 1
+    fi
+{{- end }}

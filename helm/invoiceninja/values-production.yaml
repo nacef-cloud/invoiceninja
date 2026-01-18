@@ -1,0 +1,50 @@
+# Production values override for Invoice Ninja
+# Usage: helm install invoiceninja ./helm/invoiceninja -f ./helm/invoiceninja/values-production.yaml
+
+# Cleanup configuration - preserve resources for audit and troubleshooting
+cleanup:
+  onUninstall:
+    # Keep bootstrap job to view logs and verify what was configured
+    bootstrapJob: false
+    # Keep bootstrap secret to retrieve admin password later
+    bootstrapSecret: false
+    # Keep PVCs to preserve all data (must also set resourcePolicy below)
+    pvcs: false
+
+# MySQL persistence - keep data on uninstall
+mysql:
+  primary:
+    persistence:
+      resourcePolicy: "keep"
+
+# Redis persistence - keep cache data on uninstall
+redis:
+  master:
+    persistence:
+      resourcePolicy: "keep"
+
+# MinIO persistence - keep uploaded files on uninstall
+minio:
+  persistence:
+    resourcePolicy: "keep"
+
+# Production-specific configuration (optional, customize as needed)
+# app:
+#   env: production
+#   debug: false
+
+# replicaCount:
+#   web: 3
+#   queue: 2
+
+# autoscaling:
+#   enabled: true
+
+# resources:
+#   web:
+#     requests:
+#       memory: "512Mi"
+#       cpu: "200m"
+#     limits:
+#       memory: "1Gi"
+#       cpu: "1000m"

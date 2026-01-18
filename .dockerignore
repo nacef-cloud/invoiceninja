@@ -1,0 +1,67 @@
+.git
+.github
+.gitignore
+.gitattributes
+.env
+.env.*
+.editorconfig
+.phpunit.result.cache
+*.md
+README.md
+CHANGELOG.md
+LICENSE
+
+# Testing
+tests/
+phpunit.xml
+.phpunit.result.cache
+cypress/
+cypress.config.js
+
+# Node (not needed for backend-only build)
+node_modules/
+npm-debug.log
+yarn-error.log
+package.json
+package-lock.json
+vite.config.ts
+postcss.config.js
+tailwind.config.js
+
+# Frontend resources (not needed for API backend)
+resources/js/
+resources/sass/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Build artifacts
+public/build/
+public/hot
+public/storage
+
+# Storage (will be external in k8s)
+storage/app/public/
+storage/framework/cache/
+storage/framework/sessions/
+storage/framework/views/
+storage/logs/
+
+# Database schema dumps (causes SSL errors during migrations)
+database/schema/*.sql
+
+# Docs
+docs/
+
+# K8s
+k8s/
+
+# Docker
+# docker/ - REMOVED: We need docker config files for the build!
+Dockerfile
+.dockerignore
+docker-compose*.yml

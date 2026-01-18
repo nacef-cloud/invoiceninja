@@ -1,0 +1,104 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "invoiceninja.fullname" . }}-queue
+  labels:
+    {{- include "invoiceninja.labels" . | nindent 4 }}
+    app.kubernetes.io/component: queue
+spec:
+  replicas: {{ .Values.replicaCount.queue }}
+  selector:
+    matchLabels:
+      {{- include "invoiceninja.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: queue
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "invoiceninja.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: queue
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "invoiceninja.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      initContainers:
+        # Wait for Redis to be available
+        - name: wait-for-redis
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['sh', '-c']
+          args:
+            - |
+              echo "Waiting for Redis..."
+              until nc -z -w 2 ${REDIS_HOST} ${REDIS_PORT} 2>/dev/null; do
+                echo "  waiting..."
+                sleep 2
+              done
+              echo "Redis is ready!"
+          envFrom:
+            - configMapRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+            - secretRef:
+                name: {{ include "invoiceninja.fullname" . }}-secret
+      containers:
+        - name: queue-worker
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['php', 'artisan', 'queue:work']
+          args:
+            - 'redis'
+            - '--sleep=3'
+            - '--tries=3'
+            - '--max-time=3600'
+            - '--timeout=60'
+          envFrom:
+            - configMapRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+            - secretRef:
+                name: {{ include "invoiceninja.fullname" . }}-secret
+          livenessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - nc -z -w 2 ${REDIS_HOST} ${REDIS_PORT}
+            initialDelaySeconds: 30
+            periodSeconds: 30
+            timeoutSeconds: 10
+            failureThreshold: 3
+          readinessProbe:
+            exec:
+              command:
+                - sh
+                - -c
+                - nc -z -w 2 ${REDIS_HOST} ${REDIS_PORT}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          resources:
+            {{- toYaml .Values.resources.queue | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ['php', 'artisan', 'queue:restart']
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

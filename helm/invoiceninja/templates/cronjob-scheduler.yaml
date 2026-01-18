@@ -1,0 +1,42 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: {{ include "invoiceninja.fullname" . }}-scheduler
+  labels:
+    {{- include "invoiceninja.labels" . | nindent 4 }}
+    app.kubernetes.io/component: scheduler
+spec:
+  schedule: "* * * * *"  # Every minute
+  concurrencyPolicy: Forbid  # CRITICAL: Only one instance at a time
+  successfulJobsHistoryLimit: 1
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      template:
+        metadata:
+          labels:
+            {{- include "invoiceninja.selectorLabels" . | nindent 12 }}
+            app.kubernetes.io/component: scheduler
+        spec:
+          {{- with .Values.imagePullSecrets }}
+          imagePullSecrets:
+            {{- toYaml . | nindent 12 }}
+          {{- end }}
+          serviceAccountName: {{ include "invoiceninja.serviceAccountName" . }}
+          restartPolicy: Never
+          securityContext:
+            {{- toYaml .Values.podSecurityContext | nindent 12 }}
+          containers:
+            - name: scheduler
+              securityContext:
+                {{- toYaml .Values.securityContext | nindent 16 }}
+              image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+              imagePullPolicy: {{ .Values.image.pullPolicy }}
+              command: ['php', 'artisan', 'schedule:run']
+              envFrom:
+                - configMapRef:
+                    name: {{ include "invoiceninja.fullname" . }}-config
+                - secretRef:
+                    name: {{ include "invoiceninja.fullname" . }}-secret
+              resources:
+                {{- toYaml .Values.resources.scheduler | nindent 16 }}

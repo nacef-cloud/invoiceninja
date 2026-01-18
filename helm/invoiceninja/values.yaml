@@ -1,0 +1,302 @@
+# Default values for InvoiceNinja Helm chart
+# This is optimized for local k3d deployment
+# Backend API only - use Flutter desktop app for UI
+
+# Container image configuration
+image:
+  repository: invoiceninja/invoiceninja
+  pullPolicy: IfNotPresent
+  tag: "local"  # Will be built locally
+
+# Bootstrap configuration for initial setup
+bootstrap:
+  enabled: true
+  adminEmail: admin@example.com
+  # Password is auto-generated and stored in a secret
+  # To retrieve: kubectl get secret invoiceninja-bootstrap -n invoiceninja -o jsonpath='{.data.BOOTSTRAP_PASSWORD}' | base64 -d
+  resources:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "200m"
+
+imagePullSecrets: []
+nameOverride: ""
+fullnameOverride: ""
+
+# Application configuration
+app:
+  # Application URL (change for your domain)
+  url: "http://localhost:8080"
+
+  # Application key (generate with: php artisan key:generate --show)
+  # Leave empty to auto-generate on first install
+  key: ""
+
+  # Environment
+  env: production
+  debug: false
+
+  # Locale
+  locale: en
+
+  # Trusted proxies (for ingress)
+  trustedProxies: "*"
+
+# Database configuration
+database:
+  connection: mysql
+  # These will be overridden by MySQL subchart values
+  host: ""  # Auto-set to mysql service name
+  port: 3306
+  name: invoiceninja
+  username: ninja
+  password: ""  # Set in mysql.auth.password
+
+# Redis configuration
+cache:
+  driver: redis
+
+session:
+  driver: redis
+  lifetime: 120
+
+queue:
+  connection: redis
+
+redis:
+  # Connection details (auto-set by redis subchart)
+  host: ""  # Auto-set to redis-master service name
+  port: 6379
+  password: ""  # Set in redis.auth.password
+  database: 0
+  cacheDatabase: 1
+
+# File storage configuration
+storage:
+  # Options: local, s3, minio
+  driver: s3
+
+  # S3/MinIO configuration
+  s3:
+    key: ""  # Set in minio.auth.rootUser
+    secret: ""  # Set in minio.auth.rootPassword
+    region: us-east-1
+    bucket: invoiceninja
+    # Endpoint will be auto-set for MinIO
+    endpoint: ""
+    usePathStyle: true  # Required for MinIO
+
+# PDF generation service
+pdf:
+  generator: snappdf  # Options: snappdf, gotenberg, phantom
+
+  # Gotenberg configuration (if using gotenberg)
+  gotenberg:
+    enabled: true
+    url: http://gotenberg:3000
+
+# Mail configuration
+mail:
+  mailer: log  # Change to smtp for production
+  host: ""
+  port: 587
+  username: ""
+  password: ""
+  encryption: tls
+  fromAddress: noreply@invoiceninja.local
+  fromName: "Invoice Ninja"
+
+# Replica counts
+replicaCount:
+  web: 2
+  queue: 1
+  scheduler: 1  # Should always be 1
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 80
+  annotations: {}
+
+# Ingress configuration
+ingress:
+  enabled: true
+  className: traefik  # k3d uses traefik by default
+  annotations: {}
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: invoiceninja.local
+      paths:
+        - path: /
+          pathType: Prefix
+  tls: []
+  #  - secretName: invoiceninja-tls
+  #    hosts:
+  #      - invoiceninja.local
+
+# Resource limits and requests
+resources:
+  web:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "500m"
+  queue:
+    requests:
+      memory: "256Mi"
+      cpu: "100m"
+    limits:
+      memory: "512Mi"
+      cpu: "300m"
+  scheduler:
+    requests:
+      memory: "128Mi"
+      cpu: "50m"
+    limits:
+      memory: "256Mi"
+      cpu: "100m"
+
+# Autoscaling configuration (disabled by default)
+autoscaling:
+  enabled: false
+  web:
+    minReplicas: 2
+    maxReplicas: 10
+    targetCPUUtilizationPercentage: 70
+    targetMemoryUtilizationPercentage: 80
+  queue:
+    minReplicas: 1
+    maxReplicas: 5
+    targetCPUUtilizationPercentage: 70
+
+# Pod security context
+podSecurityContext:
+  fsGroup: 82  # www-data group
+
+securityContext:
+  runAsNonRoot: false  # nginx/php-fpm need root initially
+  # capabilities:
+  #   drop:
+  #   - ALL
+  # readOnlyRootFilesystem: true
+
+# Node selector, tolerations, and affinity
+nodeSelector: {}
+tolerations: []
+affinity: {}
+
+# Service account
+serviceAccount:
+  create: true
+  annotations: {}
+  name: ""
+
+# Probes configuration
+livenessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 60
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 3
+
+readinessProbe:
+  httpGet:
+    path: /health
+    port: http
+  initialDelaySeconds: 30
+  periodSeconds: 5
+  timeoutSeconds: 3
+  failureThreshold: 3
+
+# Pod disruption budget
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
+# ============================================
+# DEPENDENCY CONFIGURATIONS
+# ============================================
+
+# MySQL Configuration (Bitnami Chart)
+mysql:
+  enabled: true
+  auth:
+    rootPassword: "rootpassword"
+    database: invoiceninja
+    username: ninja
+    password: "ninjapassword"
+  primary:
+    persistence:
+      enabled: true
+      size: 8Gi
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 500m
+
+# Redis Configuration (Bitnami Chart)
+redis:
+  enabled: true
+  architecture: standalone  # Use replication for HA
+  auth:
+    enabled: true
+    password: "redispassword"
+  master:
+    persistence:
+      enabled: true
+      size: 2Gi
+    resources:
+      requests:
+        memory: 128Mi
+        cpu: 50m
+      limits:
+        memory: 256Mi
+        cpu: 200m
+
+# MinIO Configuration (Bitnami Chart)
+minio:
+  enabled: true
+  mode: standalone  # Use distributed for HA
+  auth:
+    rootUser: minioadmin
+    rootPassword: minioadmin123
+  defaultBuckets: "invoiceninja"
+  persistence:
+    enabled: true
+    size: 10Gi
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 300m
+
+# Gotenberg PDF Service
+gotenberg:
+  enabled: true
+  image:
+    repository: gotenberg/gotenberg
+    tag: "8"
+    pullPolicy: IfNotPresent
+  replicaCount: 1
+  service:
+    type: ClusterIP
+    port: 3000
+  resources:
+    requests:
+      memory: 256Mi
+      cpu: 100m
+    limits:
+      memory: 512Mi
+      cpu: 500m

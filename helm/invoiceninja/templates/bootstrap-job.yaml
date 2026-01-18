@@ -1,0 +1,122 @@
+{{- if .Values.bootstrap.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "invoiceninja.fullname" . }}-bootstrap
+  labels:
+    {{- include "invoiceninja.labels" . | nindent 4 }}
+    app.kubernetes.io/component: bootstrap
+  annotations:
+    "helm.sh/hook": post-install,post-upgrade
+    "helm.sh/hook-weight": "5"
+    "helm.sh/hook-delete-policy": before-hook-creation
+spec:
+  backoffLimit: 3
+  template:
+    metadata:
+      labels:
+        {{- include "invoiceninja.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: bootstrap
+    spec:
+      restartPolicy: Never
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "invoiceninja.serviceAccountName" . }}
+      containers:
+      - name: bootstrap
+        image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+        imagePullPolicy: {{ .Values.image.pullPolicy }}
+        command:
+          - /bin/sh
+          - -c
+          - |
+            # Source the bootstrap script and execute
+            . /bootstrap/bootstrap.sh
+        env:
+          # Application Configuration
+          - name: APP_ENV
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: APP_ENV
+          - name: APP_DEBUG
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: APP_DEBUG
+          - name: APP_URL
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: APP_URL
+          - name: APP_KEY
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-secret
+                key: APP_KEY
+
+          # Database Configuration
+          - name: DB_CONNECTION
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: DB_CONNECTION
+          - name: DB_HOST
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: DB_HOST
+          - name: DB_PORT
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: DB_PORT
+          - name: DB_DATABASE
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: DB_DATABASE
+          - name: DB_USERNAME
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-secret
+                key: DB_USERNAME
+          - name: DB_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-secret
+                key: DB_PASSWORD
+          - name: DB_SSLMODE
+            valueFrom:
+              configMapKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+                key: DB_SSLMODE
+
+          # Bootstrap Credentials
+          - name: BOOTSTRAP_EMAIL
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-bootstrap
+                key: BOOTSTRAP_EMAIL
+          - name: BOOTSTRAP_PASSWORD
+            valueFrom:
+              secretKeyRef:
+                name: {{ include "invoiceninja.fullname" . }}-bootstrap
+                key: BOOTSTRAP_PASSWORD
+
+        volumeMounts:
+          - name: bootstrap-script
+            mountPath: /bootstrap
+            readOnly: true
+
+        resources:
+          {{- toYaml .Values.bootstrap.resources | nindent 10 }}
+
+      volumes:
+        - name: bootstrap-script
+          configMap:
+            name: {{ include "invoiceninja.fullname" . }}-bootstrap
+            defaultMode: 0755
+{{- end }}

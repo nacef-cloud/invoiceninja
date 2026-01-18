@@ -1,0 +1,65 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "invoiceninja.fullname" . }}-queue
+  labels:
+    {{- include "invoiceninja.labels" . | nindent 4 }}
+    app.kubernetes.io/component: queue
+spec:
+  replicas: {{ .Values.replicaCount.queue }}
+  selector:
+    matchLabels:
+      {{- include "invoiceninja.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: queue
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secret.yaml") . | sha256sum }}
+      labels:
+        {{- include "invoiceninja.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: queue
+    spec:
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "invoiceninja.serviceAccountName" . }}
+      securityContext:
+        {{- toYaml .Values.podSecurityContext | nindent 8 }}
+      containers:
+        - name: queue-worker
+          securityContext:
+            {{- toYaml .Values.securityContext | nindent 12 }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          command: ['php', 'artisan', 'queue:work']
+          args:
+            - 'redis'
+            - '--sleep=3'
+            - '--tries=3'
+            - '--max-time=3600'
+            - '--timeout=60'
+          envFrom:
+            - configMapRef:
+                name: {{ include "invoiceninja.fullname" . }}-config
+            - secretRef:
+                name: {{ include "invoiceninja.fullname" . }}-secret
+          resources:
+            {{- toYaml .Values.resources.queue | nindent 12 }}
+          lifecycle:
+            preStop:
+              exec:
+                command: ['php', 'artisan', 'queue:restart']
+      {{- with .Values.nodeSelector }}
+      nodeSelector:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.affinity }}
+      affinity:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- with .Values.tolerations }}
+      tolerations:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}

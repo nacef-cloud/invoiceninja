@@ -1,0 +1,80 @@
+{{- if .Values.bootstrap.enabled }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "invoiceninja.fullname" . }}-bootstrap
+  labels:
+    {{- include "invoiceninja.labels" . | nindent 4 }}
+data:
+  bootstrap.sh: |
+    #!/bin/sh
+    set -e
+
+    echo "========================================="
+    echo "Invoice Ninja Bootstrap Script"
+    echo "========================================="
+
+    # Wait for database to be ready
+    echo "Waiting for database connection..."
+    max_attempts=30
+    attempt=0
+    until php artisan db:show > /dev/null 2>&1; do
+        attempt=$((attempt + 1))
+        if [ $attempt -gt $max_attempts ]; then
+            echo "ERROR: Database connection timeout after $max_attempts attempts"
+            exit 1
+        fi
+        echo "  Attempt $attempt/$max_attempts - waiting..."
+        sleep 2
+    done
+    echo "✓ Database is ready!"
+
+    # Seed static data (languages, currencies, countries, etc.)
+    echo "Seeding static data..."
+    TIMEZONE_COUNT=$(php artisan tinker --execute="echo App\Models\Timezone::count();" 2>/dev/null | tail -1)
+
+    if [ "$TIMEZONE_COUNT" -eq 0 ]; then
+        echo "Running database seeder..."
+        php artisan db:seed --force
+        echo "✓ Static data seeded successfully!"
+    else
+        echo "✓ Static data already seeded (found $TIMEZONE_COUNT timezones)"
+    fi
+
+    # Check if admin user already exists
+    echo "Checking if admin user exists..."
+    USER_COUNT=$(php artisan tinker --execute="echo App\Models\User::where('email', '${BOOTSTRAP_EMAIL}')->count();" 2>/dev/null | tail -1)
+
+    if [ "$USER_COUNT" -gt 0 ]; then
+        echo "✓ Admin user already exists (${BOOTSTRAP_EMAIL}), skipping bootstrap"
+        exit 0
+    fi
+
+    echo "Creating admin account..."
+    php artisan ninja:create-account \
+        --email="${BOOTSTRAP_EMAIL}" \
+        --password="${BOOTSTRAP_PASSWORD}" \
+        --no-interaction
+
+    if [ $? -eq 0 ]; then
+        echo "✓ Admin account created successfully!"
+        echo ""
+        echo "========================================="
+        echo "Bootstrap Complete!"
+        echo "========================================="
+        echo ""
+        echo "Static Data:"
+        echo "  - Languages: $(php artisan tinker --execute='echo App\Models\Language::count();' 2>/dev/null | tail -1)"
+        echo "  - Currencies: $(php artisan tinker --execute='echo App\Models\Currency::count();' 2>/dev/null | tail -1)"
+        echo "  - Countries: $(php artisan tinker --execute='echo App\Models\Country::count();' 2>/dev/null | tail -1)"
+        echo "Admin Email: ${BOOTSTRAP_EMAIL}"
+        echo "Admin Password: Stored in secret {{ include "invoiceninja.fullname" . }}-bootstrap"
+        echo ""
+        echo "To retrieve the password, run:"
+        echo "  kubectl get secret {{ include "invoiceninja.fullname" . }}-bootstrap -n {{ .Release.Namespace }} -o jsonpath='{.data.BOOTSTRAP_PASSWORD}' | base64 -d"
+        echo "========================================="
+    else
+        echo "ERROR: Failed to create admin account"
+        exit 1
+    fi
+{{- end }}

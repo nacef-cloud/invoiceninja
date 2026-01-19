@@ -185,7 +185,7 @@ class InvoiceSum
     private function calculatePartial(): self
     {
         if (! isset($this->invoice->id) && isset($this->invoice->partial)) {
-            $this->invoice->partial = max(0, min(Number::roundValue($this->invoice->partial, 2), $this->invoice->balance));
+            $this->invoice->partial = max(0, min(Number::roundValue($this->invoice->partial, $this->precision), $this->invoice->balance));
         }
 
         return $this;
